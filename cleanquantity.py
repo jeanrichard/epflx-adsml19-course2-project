@@ -71,18 +71,46 @@ def _make_conversion_table(valid_units):
 CONVERSION_TABLE = _make_conversion_table(VALID_UNITS)
 
 
-def standardize_quantity(values: pd.Series) -> t.Tuple[float, t.Optional[str]]:
+def _standardize(values: pd.Series) -> t.Tuple[float, t.Optional[str]]:
     """\
     DOCME
     """                                                     
     number = values['number']
     unit = values['unit']
     
-    # Lookup the unit and conversion function:
     pair = CONVERSION_TABLE.get(unit, None)
     if pair is None:
         return np.nan, None
     
-    # Standardize:
     target_unit, conversion = pair
     return conversion(number), target_unit
+
+
+def clean(quantity: pd.Series) -> pd.DataFrame:
+    """\
+    DOCME
+    """
+    # Create a DataFrame with columns 'number' and 'unit':
+    df_qty = quantity.str.extract(PATTERN_QUANTITY)
+
+    # Convert numbers to 'float':
+    df_qty['number'] = (
+        df_qty['number']
+        .str.replace(',', '.', regex=False)
+        .map(lambda value: float(value))
+    )
+
+    # Convert units to lower case:
+    df_qty['unit'] = (
+        df_qty['unit']
+        .str.lower()
+    )
+
+    # Standardize:
+    df_qty = (
+        df_qty[['number', 'unit']]
+        .apply(_standardize, axis=1, result_type='expand')
+        .rename(columns={0: 'number', 1: 'unit'})
+    )
+    
+    return df_qty
