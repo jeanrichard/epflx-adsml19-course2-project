@@ -12,7 +12,7 @@ import unicodedata
 
 
 #
-# Tokenizer
+# Tokenization
 #
 
 
@@ -32,7 +32,7 @@ LPARS = re.escape(r'([')
 RPARS = re.escape(r')]')
 
 # Patterns:
-P_SPACE = re.compile(r'(?P<token>\s+)')  # consecutive white spaces
+P_SPACE = re.compile(r'(?P<token>\s+)')  # a sequence of white spaces
 P_DELIM = re.compile(fr'(?P<token>[{DELIMS}])')  # a delimiter
 P_LPAR = re.compile(fr'(?P<token>[{LPARS}])')  # a l. parenthesis
 P_RPAR = re.compile(fr'(?P<token>[{RPARS}])')  # a r. parenthesis
@@ -74,10 +74,10 @@ def panic(rest: str) -> t.Tuple[str, str]:
     return ''.join(buffer), rest
 
 
-def tokenize_simple(text: str) -> t.Iterable[Token]:
+def tokenize_simple(text: str, peek_size: int = 1) -> t.Iterable[Token]:
     """\
     Splits ``text`` into a sequence of tokens. Tokens of type ``SPACE`` are immediately discarded.
-    An additional token of type ``END`` is generated upon reaching the end of the input.
+    Additional tokens of type ``END`` are generated upon reaching the end of the input.
     """
     rest = text
     token_pos = 0
@@ -98,22 +98,15 @@ def tokenize_simple(text: str) -> t.Iterable[Token]:
         token_pos += len(token_text)
     
     # End:
-    yield Token(TokenType.END, '$', token_pos)
+    for _ in range(peek_size):
+        yield Token(TokenType.END, '$', token_pos)
+        token_pos += 1
 
 
-def _make_p_delim(delims: t.Sequence[str]) -> t.Pattern:
-    # Compile the pattern once:
-    p_delim_str = '|'.join(re.escape(delim) for delim in delims)  # order matters
-    p_delim = re.compile(fr'\b({p_delim_str})\b')
-    return p_delim
-
-
-def tokenize_field(token: Token, delims: t.Sequence[str], p_delim: t.Optional[t.Pattern] = None) -> t.Iterable[Token]:
+def tokenize_field(token: Token, delims: t.Sequence[str], p_delim: t.Pattern) -> t.Iterable[Token]:
     """\
     DOCME
     """
-    p_delim = p_delim if p_delim is not None else _make_p_delim(delims)
-    
     subtoken_texts = p_delim.split(token.text)
     subtoken_pos = token.pos
     for subtoken_text in subtoken_texts:
@@ -131,17 +124,18 @@ def tokenize_field(token: Token, delims: t.Sequence[str], p_delim: t.Optional[t.
         subtoken_pos += len(subtoken_text)
 
 
-def tokenize(text: str, delims: t.Sequence[str] = None) -> t.Iterable[Token]:
+def tokenize(text: str, delims: t.Sequence[str] = None, peek_size: int = 1) -> t.Iterable[Token]:
     """\
     Splits ``text`` into a sequence of tokens. Tokens of type ``SPACE`` are immediately discarded.
-    An additional token of type ``END`` is generated upon reaching the end of the input.
+    An additional token of type ``END`` is generated upon reaching the end-of-input.
     """    
     if delims is None:
-        yield from tokenize_simple(text)
+        yield from tokenize_simple(text, peek_size)
     else:
         # Compile the pattern once:
-        p_delim = _make_p_delim(delims)
-        for token in tokenize_simple(text):
+        p_delim_str = '|'.join(re.escape(delim) for delim in delims)
+        p_delim = re.compile(fr'\b({p_delim_str})\b')
+        for token in tokenize_simple(text, peek_size):
             if token.type == TokenType.FIELD:
                 yield from tokenize_field(token, delims, p_delim)
             else:
@@ -164,6 +158,10 @@ def replace_punctuation(text: str, repl=' ') -> str:
     # See e.g. https://unicodebook.readthedocs.io/unicode.html:
     return ''.join(c if not unicodedata.category(c).startswith('P') else repl for c in text)
 
+
+#
+# Normalization
+#
 
 P_NORM_WHITESPACE = re.compile(r'\s+')
 P_NORM_NUMBER = re.compile(r'\b\d+(?:[\.\,]\d*)?\b')
