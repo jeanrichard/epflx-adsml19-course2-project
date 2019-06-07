@@ -5,33 +5,33 @@ Miscellaneous utilities.
 
 # Standard library:
 import json
+import typing as t
 
 # 3rd party:
 import pandas as pd
 
 
-def dump_dataframe(df: pd.DataFrame, rootname: str) -> None:
-    data_types = df.dtypes.astype(str).to_dict()
-    with open(f'{rootname}.dtypes.json', 'w') as f:
+def dump_dtypes(base_name: str, data_types: t.Dict[str, str]) -> None:
+    with open(f'{base_name}.dtypes.json', 'w') as f:
         json.dump(data_types, f)
-    df.to_csv(f'{rootname}.csv', index=False)
 
 
-def load_dataframe(rootname: str) -> pd.DataFrame:
-    data_types = None
-    parse_dates=[]
-    data_types2 = {}
-    with open(f'{rootname}.dtypes.json', 'r') as f:
-        data_types = json.load(f)
-    for col_name, data_type in data_types.items():
-        if data_type.startswith('datetime64'):
+def load_dtypes(base_name: str) -> t.Dict[str, str]:
+    with open(f'{base_name}.dtypes.json', 'r') as f:
+        return json.load(f)
+
+    
+def amend_dtypes(data_types: t.Dict[str, str]) -> t.Tuple[t.Dict[str, str], t.List[str]]:
+    """\
+    Identifies columns of type ``datetime64*``, replaces ``datetime64*`` by ``object``, and
+    lists the names of these columns.
+    """
+    amended = {}
+    parse_dates = []
+    for col_name, col_type in data_types.items():
+        if col_type.startswith('datetime64'):
             parse_dates.append(col_name)
-            data_types2[col_name] = 'object'
+            amended[col_name] = 'object'
         else:
-            data_types2[col_name] = data_type    
-    df = pd.read_csv(
-        f'{rootname}.csv',
-        header=0,
-        parse_dates=parse_dates,
-        dtype=data_types2)
-    return df
+            amended[col_name] = col_type
+    return amended, parse_dates
