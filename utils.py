@@ -35,3 +35,8 @@ def amend_dtypes(data_types: t.Dict[str, str]) -> t.Tuple[t.Dict[str, str], t.Li
         else:
             amended[col_name] = col_type
     return amended, parse_dates
+
+
+
+def load_and_amend_dtypes(base_name: str) -> t.Tuple[t.Dict[str, str], t.List[str]]:
+    return amend_dtypes(load_dtypes(base_name))
