@@ -6,9 +6,13 @@ Utilities to process the *ingredients_text* column.
 # Standard library:
 import collections
 import enum
+import itertools
 import re
 import typing as t
 import unicodedata
+
+# 3rd party:
+import pandas as pd
 
 
 #
@@ -134,7 +138,7 @@ def tokenize(text: str, delims: t.Sequence[str] = None, peek_size: int = 1) -> t
     else:
         # Compile the pattern once:
         p_delim_str = '|'.join(re.escape(delim) for delim in delims)
-        p_delim = re.compile(fr'\b({p_delim_str})\b')
+        p_delim = re.compile(fr'\b(?:{p_delim_str})\b', re.IGNORECASE)
         for token in tokenize_simple(text, peek_size):
             if token.type == TokenType.FIELD:
                 yield from tokenize_field(token, delims, p_delim)
@@ -203,3 +207,71 @@ def highlight(text: str, start: int, end: int, start_marker: str, end_marker: st
 
 def highglight_token(text: str, token: Token, start_marker: str, end_marker: str) -> str:
     return highlight(text, token.pos, token.pos + len(token.text), start_marker, end_marker)
+
+
+#
+# Utilities
+#
+
+# This is an old itertools recipe:
+def window(seq: t.Iterable[t.Any], n=2) -> t.Iterable[t.Sequence[t.Any]]:
+    """\
+    Returns a sliding window (of width ``n``) over data from the iterable.
+    For a sequence ``s``, the result will be ``(s0, s1, ..., s[n-1]), (s1, s2, ..., s[n]), ...``.
+    """
+    it = iter(seq)
+    result = tuple(itertools.islice(it, n))
+    if len(result) == n:
+        yield result    
+    for elem in it:
+        result = result[1:] + (elem,)
+        yield result
+
+
+def tokens_to_ingredients(tokens: t.Iterable[Token]) -> t.Iterable[t.Tuple[str, int]]:
+    """\
+    Allows to convert a sequence of tokens into a list of pairs (ingredient, is-composite).
+    """
+    # Peek 3 tokens ahead:
+    for t1, t2, t3 in window(tokens, 3):
+        if t1.type == TokenType.END:
+            break
+        # Implicitely discard tokens of a type other than 'FIELD':
+        if t1.type == TokenType.FIELD:
+            # Figure out if the ingredient is composite (see assumptions):
+            is_composite = (t2.type == TokenType.LPAR and
+                            t3.type == TokenType.FIELD)
+            yield (t1.text, int(is_composite))
+
+
+"""\
+The 1st utility functions below allows to convert a single list of ingredients into a (single) lists of pairs (normalized-ingredient, is-composite). The 2nd utility function below allows to convert multiple lists of ingredients into a (single) list of pairs (normalized-ingredient, is-composite). The last function allows to convert multiple lists of ingredients into a data-frame:
+"""
+def text_to_ingredients(text: str, delims: t.Sequence[str]) -> t.Iterable[t.Tuple[str, int]]:
+    yield from tokens_to_ingredients(normalize(tokenize(text, delims, 3)))
+    
+
+def texts_to_ingredients(texts: t.Iterable[str], delims: t.Sequence[str]) -> t.Iterable[t.Tuple[str, int]]:
+    for text in texts:
+        yield from text_to_ingredients(text, delims)
+
+
+def texts_to_ingredients_df(texts: pd.Series, delims: t.Sequence[str]) -> pd.DataFrame:
+    return pd.DataFrame.from_records(
+        texts_to_ingredients(texts, delims), columns=['ingredient', 'is_composite'])
+
+
+def reconcile_composite(df: pd.DataFrame, threshold: float = 0.5) -> pd.DataFrame:
+    # Compute count and mean:
+    df_reconciled = (
+        df
+        .groupby(by='ingredient')
+        .agg(['count', 'mean'])
+        .rename(columns={'count': 'count', 'mean': 'composite_mean'})
+    )
+    # Get rid of the multi-index:
+    df_reconciled.columns = df_reconciled.columns.get_level_values(1)
+    # Reconcile:
+    df_reconciled['is_composite'] = (df_reconciled['composite_mean'] > threshold)
+    df_reconciled = df_reconciled.drop(columns=['composite_mean'])
+    return df_reconciled
