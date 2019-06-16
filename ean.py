@@ -3,7 +3,7 @@
 Utilities to check if a code is a valid EAN-13/EAN-8/UPC-A code.
 
 References:
-- The `International Article Number<<https://en.wikipedia.org/wiki/International_Article_Number>`>`_ page on Wikipedia.
+- The `International Article Number<https://en.wikipedia.org/wiki/International_Article_Number>`_ page on Wikipedia.
 - The `ean<https://github.com/arthurdejong/python-stdnum/blob/master/stdnum/ean.py>`_ module in the ``stdnum`` library.
 """
 
@@ -26,10 +26,11 @@ def compute_check_digit(number: str) -> str:
 
 def validate(code: str) -> str:
     """\
-    Checks whether the given code is a valid EAN-13/EAN-8/UPC-A code in terms of length and check-digit.
+    Tests whether a given code is a valid EAN-13/EAN-8/UPC-A code in terms of length and
+    check-digit.
     
     Raises:
-        ValueError: If the check fails.
+        ValueError: If the test fails.
         
     Returns:
         A compact version of the code.
@@ -46,7 +47,11 @@ def validate(code: str) -> str:
 
 def is_valid(code: str) -> bool:
     """\
-    Check whether the given code is a valid EAN-13/EAN-8/UPC-A code in terms of length and check-digit.
+    Tests whether a given code is a valid EAN-13/EAN-8/UPC-A code in terms of length and
+    check-digit.
+    
+    Returns:
+        ``True`` is the test succeeds; ``False`` otherwise.
     """
     try:
         validate(code)

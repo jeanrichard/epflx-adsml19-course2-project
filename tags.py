@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """\
-Utilities to clean the *quantity* column.
+Utilities to clean the *tags* columns.
 """
 
 # Standard library:
@@ -13,7 +13,14 @@ import pandas as pd
 
 def _split_tag(tag: str, default_prefix='') -> t.Tuple[str, str]:
     """\
-    Splits a tag into a pair ``(prefix, value)``.
+    Splits a tag into a ``(prefix, value)`` pair.
+    
+    Args:
+        tag: The tag to split.
+        default_prefix: The prefix to return if the tag has no prefix.
+    
+    Returns:
+        As describe above.
     """
     try:
         idx = tag.index(':')
@@ -24,7 +31,13 @@ def _split_tag(tag: str, default_prefix='') -> t.Tuple[str, str]:
 
 def _to_tags(text: str) -> t.Set[t.Tuple[str, str]]:
     """\
-    DOCME
+    Splits a comma-delimited list of tags into a set of ``(prefix, value)`` pairs.
+    
+    Args:
+        text: The comma-delimited list of tags to split.
+    
+    Returns:
+        As describe above.
     """
     # Split:
     tags = [tag.strip() for tag in text.split(',')]
@@ -34,9 +47,15 @@ def _to_tags(text: str) -> t.Set[t.Tuple[str, str]]:
     return {_split_tag(tag) for tag in tags}
 
 
-def clean_tags(text:str) -> str:
+def clean_tags(text: str) -> str:
     """\
-    DOCME
+    Cleans a comma-delimited list of tags.
+    
+    Args:
+        text: the comma-delimited list of tags to clean.
+    
+    Returns:
+        As described above.
     """
     if pd.isna(text):
         return text

@@ -58,7 +58,17 @@ VALID_UNITS = {
 }
 
 
-def _make_conversion_table(valid_units):
+def _make_conversion_table(valid_units: t.Dict[str, t.Any]) -> t.Dict[str, t.Tuple[str, t.Callable[[float], float]]]:
+    """\
+    Builds the conversion table that maps the word for a given unit to a
+    ``(target-unit, conversion-function)`` pair.
+    
+    Args:
+        valid_units: A dictionary with the same structure as ``VALID_UNITS``.
+    
+    Returns:
+        As described above.
+    """
     result = {}
     for target_unit, multiples in valid_units.items():
         for translations, conversion in multiples:
@@ -73,7 +83,13 @@ CONVERSION_TABLE = _make_conversion_table(VALID_UNITS)
 
 def _standardize(values: pd.Series) -> t.Tuple[float, t.Optional[str]]:
     """\
-    DOCME
+    Converts all weights to gram and all volumes to liter.
+    
+    Args:
+        values: A series with ``number`` and ``unit`` in the index.
+    
+    Returns:
+        A ``(converted-number, unit)`` pair.
     """                                                     
     number = values['number']
     unit = values['unit']
@@ -88,7 +104,13 @@ def _standardize(values: pd.Series) -> t.Tuple[float, t.Optional[str]]:
 
 def clean(quantity: pd.Series) -> pd.DataFrame:
     """\
-    DOCME
+    Cleans a series of raw quantity strings.
+    
+    Args:
+        quantity: The series to clean.
+    
+    Returns:
+        A data-frame with columns ``number`` and ``unit``.
     """
     # Create a DataFrame with columns 'number' and 'unit':
     df_qty = quantity.str.extract(PATTERN_QUANTITY)

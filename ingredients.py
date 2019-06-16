@@ -91,7 +91,7 @@ def tokenize_simple(text: str, peek_size: int = 1) -> t.Iterable[Token]:
             m = pattern.match(rest)
             if m:
                 token_text, rest = m.group('token'), rest[m.end():]
-                # Discard tokens of type 'SPACE':
+                # Implicitely discard tokens of type 'SPACE':
                 if token_type != TokenType.SPACE:
                     yield Token(token_type, token_text, token_pos)
                 break
@@ -109,7 +109,7 @@ def tokenize_simple(text: str, peek_size: int = 1) -> t.Iterable[Token]:
 
 def tokenize_field(token: Token, delims: t.Sequence[str], p_delim: t.Pattern) -> t.Iterable[Token]:
     """\
-    DOCME
+    Further splits tokens of type ``FIELD`` on language-specific delimiters.
     """
     subtoken_texts = p_delim.split(token.text)
     subtoken_pos = token.pos
@@ -138,7 +138,7 @@ def tokenize(text: str, delims: t.Sequence[str] = None, peek_size: int = 1) -> t
     else:
         # Compile the pattern once:
         p_delim_str = '|'.join(re.escape(delim) for delim in delims)
-        p_delim = re.compile(fr'\b(?:{p_delim_str})\b', re.IGNORECASE)
+        p_delim = re.compile(fr'\b({p_delim_str})\b', re.IGNORECASE)
         for token in tokenize_simple(text, peek_size):
             if token.type == TokenType.FIELD:
                 yield from tokenize_field(token, delims, p_delim)
@@ -148,7 +148,7 @@ def tokenize(text: str, delims: t.Sequence[str] = None, peek_size: int = 1) -> t
     
 def remove_accents(text: str) -> str:
     """\
-    DOCME
+    Removes accents. 
     """
     # See e.g. https://unicodebook.readthedocs.io/unicode.html:
     normalized = unicodedata.normalize('NFKD', text)
@@ -157,7 +157,7 @@ def remove_accents(text: str) -> str:
 
 def replace_punctuation(text: str, repl=' ') -> str:
     """\
-    DOCME
+    Replaces punctuation marks by a single space.
     """
     # See e.g. https://unicodebook.readthedocs.io/unicode.html:
     return ''.join(c if not unicodedata.category(c).startswith('P') else repl for c in text)
@@ -213,6 +213,7 @@ def highglight_token(text: str, token: Token, start_marker: str, end_marker: str
 # Utilities
 #
 
+
 # This is an old itertools recipe:
 def window(seq: t.Iterable[t.Any], n=2) -> t.Iterable[t.Sequence[t.Any]]:
     """\
@@ -244,24 +245,36 @@ def tokens_to_ingredients(tokens: t.Iterable[Token]) -> t.Iterable[t.Tuple[str, 
             yield (t1.text, int(is_composite))
 
 
-"""\
-The 1st utility functions below allows to convert a single list of ingredients into a (single) lists of pairs (normalized-ingredient, is-composite). The 2nd utility function below allows to convert multiple lists of ingredients into a (single) list of pairs (normalized-ingredient, is-composite). The last function allows to convert multiple lists of ingredients into a data-frame:
-"""
 def text_to_ingredients(text: str, delims: t.Sequence[str]) -> t.Iterable[t.Tuple[str, int]]:
+    """\
+    Converts a single list of ingredients into a (single) lists of pairs 
+    ``(normalized-ingredient, is-composite)``.
+    """
     yield from tokens_to_ingredients(normalize(tokenize(text, delims, 3)))
     
 
 def texts_to_ingredients(texts: t.Iterable[str], delims: t.Sequence[str]) -> t.Iterable[t.Tuple[str, int]]:
+    """\
+    Convert multiple lists of ingredients into a (single) list of pairs 
+    ``(normalized-ingredient, is-composite)``.
+    """
     for text in texts:
         yield from text_to_ingredients(text, delims)
 
 
 def texts_to_ingredients_df(texts: pd.Series, delims: t.Sequence[str]) -> pd.DataFrame:
+    """\
+    Convert multiple lists of ingredients into a data-frame.
+    """
     return pd.DataFrame.from_records(
         texts_to_ingredients(texts, delims), columns=['ingredient', 'is_composite'])
 
 
 def reconcile_composite(df: pd.DataFrame, threshold: float = 0.5) -> pd.DataFrame:
+    """\
+    Takes care of ingredients that appear multiple times, sometimes marked as "simple" and sometime 
+    marked as "composite".
+    """
     # Compute count and mean:
     df_reconciled = (
         df
